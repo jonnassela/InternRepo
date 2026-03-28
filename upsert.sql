@@ -33,6 +33,9 @@
 create or alter procedure upsert_customers
 as 
 begin 
+
+    begin transaction 
+
     begin try -- to protect procedure from crashing silently
 
         update s
@@ -41,7 +44,10 @@ begin
             s.city=l.city,
             s.updated=l.updated 
         from staging.customers_clean s 
-        join landing.customers l on s.customer_id=l.customer_id;
+        inner join landing.customers l 
+            on s.customer_id = l.customer_id;
+
+        declare @updated_rows INT= @@ROWCOUNT;
 
         insert into staging.customers_clean(customer_id,name,city,updated)
         select 
@@ -51,14 +57,24 @@ begin
             l.updated
         from landing.customers l 
         left join staging.customers_clean s 
-        on l.customer_id = s.customer_id
+            on l.customer_id = s.customer_id
         where s.customer_id is null;
+
+        declare @inserted_rows INT = @@ROWCOUNT;
 
         -- logg success
         insert into config.audit_log (procedure_name,status,message)
-        values('upsert_customers','success','upsert completed');
+        values(
+            'upsert_customers',
+            'success',
+            'updtaed' + cast(@updated_rows as varchar)+
+            'inserted:'+ cast(@inserted_rows as varchar)
+            );
+
+            commit transaction;
     end try 
     begin catch 
+        rollback transaction;
     -- log error
         insert into config.audit_log(procedure_name,status,message)
         values('upsert_customers','fail', ERROR_MESSAGE());
