@@ -60,7 +60,7 @@ begin
             on l.customer_id = s.customer_id
         where s.customer_id is null;
 
-        declare @inserted_rows INT = @@ROWCOUNT;
+        declare @inserted_rows INT = @@ROWCOUNT; -- store immediately bc next  sql statement will overwrite it 
 
         -- logg success
         insert into config.audit_log (procedure_name,status,message)
