@@ -1,47 +1,51 @@
 -- full load logic// Delete everything → Insert everything again
 -- Full load replaces all data in the target table with fresh data from the source to ensure consistency.
 
--- create procedure full_load_customers
--- as 
--- begin
 
---     --remove old data
---     delete from staging.customers_clean;
+--hardcoded version
 
---     --load fresh data
---     insert into staging.customers_clean
---     select *
---     from landing.customers;
 
--- end;
+create procedure full_load_customers
+as 
+begin
 
--- CREATE PROCEDURE full_load_customers
--- AS
--- BEGIN
+    --remove old data
+    delete from staging.customers_clean;
 
---     BEGIN TRY
+    --load fresh data
+    insert into staging.customers_clean
+    select *
+    from landing.customers;
 
---         DELETE FROM staging.customers_clean;
+end;
 
---         INSERT INTO staging.customers_clean
---         SELECT *
---         FROM landing.customers;
+CREATE PROCEDURE full_load_customers
+AS
+BEGIN
 
---         INSERT INTO config.audit_log
---         (procedure_name, status, message)
---         VALUES ('full_load_customers', 'SUCCESS', 'Full load completed');
+    BEGIN TRY
 
---     END TRY
+        DELETE FROM staging.customers_clean;
 
---     BEGIN CATCH
+        INSERT INTO staging.customers_clean
+        SELECT *
+        FROM landing.customers;
 
---         INSERT INTO config.audit_log
---         (procedure_name, status, message)
---         VALUES ('full_load_customers', 'ERROR', ERROR_MESSAGE());
+        INSERT INTO config.audit_log
+        (procedure_name, status, message)
+        VALUES ('full_load_customers', 'SUCCESS', 'Full load completed');
 
---     END CATCH
+    END TRY
 
--- END;
+    BEGIN CATCH
+
+        INSERT INTO config.audit_log
+        (procedure_name, status, message)
+        VALUES ('full_load_customers', 'ERROR', ERROR_MESSAGE());
+
+    END CATCH
+
+END;
 
 CREATE OR ALTER PROCEDURE full_load_customers -- no need to drop procedure just overwrite it
 AS
