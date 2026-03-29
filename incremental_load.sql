@@ -1,6 +1,40 @@
 --incremental load logic
 --load the only the data that has changed since the last load
 
+
+--hardcoded
+GO
+CREATE OR ALTER PROCEDURE incremental_load_customers
+AS
+BEGIN
+
+    -- Step 1: Update only recently changed rows (HARDCODED date)
+    UPDATE s
+    SET 
+        s.name = l.name,
+        s.city = l.city,
+        s.updated = l.updated
+    FROM staging.customers_clean s
+    JOIN landing.customers l
+        ON s.customer_id = l.customer_id
+    WHERE l.updated > '2024-01-01';  -- hardcoded timestamp
+
+    -- Step 2: Insert only new + recent rows
+    INSERT INTO staging.customers_clean (customer_id, name, city, updated)
+    SELECT 
+        l.customer_id,
+        l.name,
+        l.city,
+        l.updated
+    FROM landing.customers l
+    LEFT JOIN staging.customers_clean s
+        ON l.customer_id = s.customer_id
+    WHERE s.customer_id IS NULL
+    AND l.updated > '2024-01-01';  -- same hardcoded filter
+
+END;
+GO
+
 GO
 CREATE OR ALTER PROCEDURE incremental_load_customers
 AS
