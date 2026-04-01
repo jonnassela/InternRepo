@@ -240,3 +240,75 @@ BEGIN
     END CATCH
 END;
 GO
+
+
+
+-- after changing the config table with an unique id, current load time and last load time this procedure needs a small modification
+
+CREATE OR ALTER PROCEDURE incremental_load_customers
+AS
+BEGIN
+    BEGIN TRANSACTION;
+
+    BEGIN TRY
+
+        DECLARE @last_load      DATETIME;
+        DECLARE @current_load   DATETIME = GETDATE();
+        DECLARE @updated_rows   INT = 0;
+        DECLARE @inserted_rows  INT = 0;
+
+        --On the very first run, the config table is completely empty, so MAX() returns NULL. ISNULL says "if it's NULL, use 1900-01-01 instead."
+        -- Step 1: Get last load time from the most recent config row
+        SELECT @last_load = ISNULL(MAX(current_load_time), '1900-01-01')
+        FROM config.load_config;
+
+        -- Step 2: Update changed rows
+        UPDATE s
+        SET 
+            s.name    = l.name,
+            s.city    = l.city,
+            s.updated = l.updated
+        FROM staging.customers_clean s
+        JOIN landing.customers l
+            ON s.customer_id = l.customer_id
+        WHERE l.updated > @last_load;
+
+        SET @updated_rows = @@ROWCOUNT;
+
+        -- Step 3: Insert new rows
+        INSERT INTO staging.customers_clean (customer_id, name, city, updated)
+        SELECT l.customer_id, l.name, l.city, l.updated
+        FROM landing.customers l
+        LEFT JOIN staging.customers_clean s
+            ON l.customer_id = s.customer_id
+        WHERE s.customer_id IS NULL
+          AND l.updated > @last_load;
+
+        SET @inserted_rows = @@ROWCOUNT;
+
+        -- Step 4: INSERT a new config row (last = previous current, current = now)
+        INSERT INTO config.load_config (last_load_time, current_load_time)
+        VALUES (@last_load, @current_load);
+
+        -- Step 5: Audit log
+        INSERT INTO config.audit_log (procedure_name, status, message)
+        VALUES (
+            'incremental_load_customers',
+            'SUCCESS',
+            'Updated: ' + CAST(@updated_rows AS VARCHAR) +
+            ', Inserted: ' + CAST(@inserted_rows AS VARCHAR)
+        );
+
+        COMMIT TRANSACTION;
+
+    END TRY
+    BEGIN CATCH
+
+        ROLLBACK TRANSACTION;
+
+        INSERT INTO config.audit_log (procedure_name, status, message)
+        VALUES ('incremental_load_customers', 'FAIL', ERROR_MESSAGE());
+
+    END CATCH
+END;
+GO
