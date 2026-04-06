@@ -1,53 +1,45 @@
 --append logic
 --“Insert new data into the target table without modifying existing data.”
 
---hardcoded
-create or alter procedure append_customers
-as 
-begin 
+--hardcoded (commented out as it's an older version)
+--create or alter procedure append_customers
+--as 
+--begin 
+--    insert into staging.customers_clean(customer_id,name,city,updated)
+--    select customer_id,name,city,updated
+--    from landing.customers;
+--end;
 
-    insert into staging.customers_clean(customer_id,name,city,updated)
-    select customer_id,name,city,updated
-    from landing.customers;
-
-end;
-
---version 2 for commit 2
-
+--version 2 for commit 2 (commented out as it's an older version)
 --fixing the problem with duplicates 
+--create or alter procedure append_customers
+--as 
+--begin 
+--    begin try 
+--        --insert only new records
+--        insert into staging.customers_clean (customer_id,name,city,updated)
+--        select 
+--            l.customer_id,
+--            l.name,
+--            l.city,
+--            l.updated
+--        from landing.customers l 
+--        left join staging.customers_clean s
+--            on l.customer_id = s.customer_id
+--        where s.customer_id is null; -- only new rows inserted so no duplicated 
+--        --log success 
+--        insert into config.audit_log(procedure_name, status,message)
+--        values ('append_customers','success','append completed');
+--    END TRY
+--    BEGIN CATCH  -- Fixed: Removed semicolon after END TRY and ensured BEGIN CATCH follows directly
+--        --log error
+--        insert into config.audit_log(procedure_name,status,message)
+--        values('append_customers','FAIL', ERROR_MESSAGE());
+--    END CATCH;
+--END;
 
-create or alter procedure append_customers
-as 
-begin 
-    begin try 
-
-        --insert only new records
-        insert into staging.customers_clean (customer_id,name,city,updated)
-        select 
-            l.customer_id,
-            l.name,
-            l.city,
-            l.updated
-        from landing.customers l 
-        left join staging.customers_clean s
-            on l.customer_id = s.customer_id
-        where s.customer_id is null; -- only new rows inserted so no duplicated 
-
-        --log success 
-        insert into config.audit_log(procedure_name, status,message)
-        values ('append_customers','success','append completed');
-
-    END TRY;
-    begin catch
-        --log error
-        insert into config.audit_log(procedure_name,status,message)
-        values('append_customers','FAIL', ERROR_MESSAGE());
-
-    end catch;
-END;
-
-
---commit 3
+--commit 3 (latest version)
+GO  -- Batch separator for the procedure
 
 CREATE OR ALTER PROCEDURE append_customers
 AS
