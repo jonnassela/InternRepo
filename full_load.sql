@@ -19,6 +19,7 @@ begin
 
 end;
 
+GO
 CREATE PROCEDURE full_load_customers
 AS
 BEGIN
@@ -47,6 +48,7 @@ BEGIN
 
 END;
 
+GO
 CREATE OR ALTER PROCEDURE full_load_customers -- no need to drop procedure just overwrite it
 AS
 BEGIN
